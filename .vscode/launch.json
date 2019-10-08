@@ -1,0 +1,11 @@
+{
+    "configurations": [
+        {
+            "type": "java",
+            "name": "CodeLens (Launch) - GraphGUI",
+            "request": "launch",
+            "mainClass": "GraphGUI",
+            "projectName": "files_720fb714"
+        }
+    ]
+}
