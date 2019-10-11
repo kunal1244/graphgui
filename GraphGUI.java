@@ -1,15 +1,21 @@
 import java.util.*;
+
+import static java.awt.Color.red;
+
 import java.awt.*;
 import java.awt.event.*;
-import javax.swing.*;        
+import javax.swing.*;
+import java.io.FileWriter;
+import java.io.BufferedReader; 
+import java.io.FileReader;
+import java.io.IOException;
 
 public class GraphGUI {
 
-
+    private static final String filePath = "obj.bin";
     public static int Red = 0;
     public static int Blue = 0;
     public static int Green = 0;
-
     /** The graph to be displayed */
     private JGraph graph;
 
@@ -29,16 +35,16 @@ public class GraphGUI {
     Point tailUnderMouse = null;
 
     /**
-     *  Schedules a job for the event-dispatching thread
-     *  creating and showing this application's GUI.
+     * Schedules a job for the event-dispatching thread creating and showing this
+     * application's GUI.
      */
     public static void main(String[] args) {
         final GraphGUI GUI = new GraphGUI();
         javax.swing.SwingUtilities.invokeLater(new Runnable() {
-                public void run() {
-                    GUI.createAndShowGUI();
-                }
-            });
+            public void run() {
+                GUI.createAndShowGUI();
+            }
+        });
     }
 
     /** Sets up the GUI window */
@@ -71,9 +77,8 @@ public class GraphGUI {
         graph.addMouseMotionListener(pml);
         panel.add(graph);
         instr = new JLabel("Click to add new nodes , drag to move.");
-        panel.add(instr,BorderLayout.NORTH);
+        panel.add(instr, BorderLayout.NORTH);
         pane.add(panel);
-
 
         // controls
         MenuBar menu = new MenuBar();
@@ -86,7 +91,7 @@ public class GraphGUI {
         MenuItem addNodeButton = new MenuItem("Add/Move Nodes");
         panel1.add(addNodeButton);
         addNodeButton.addActionListener(new AddNodeListener());
-        
+
         MenuItem clrNodeButton = new MenuItem("Color Nodes");
         panel1.add(clrNodeButton);
         clrNodeButton.addActionListener(new ClrNodeListener());
@@ -107,9 +112,10 @@ public class GraphGUI {
         panel1.add(rmvEdgeButton);
         rmvEdgeButton.addActionListener(new RmvEdgeListener());
 
-        /*JButton resetButton = new JButton("Reset");
-        panel2.add(resetButton);
-        resetButton.addActionListener(new ResetListener());*/
+        MenuItem resetButton = new MenuItem("Reset");
+        panel1.add(resetButton);
+        resetButton.addActionListener(new ResetListener());
+        
 
         Menu panel2 = new Menu("File");
 
@@ -121,28 +127,27 @@ public class GraphGUI {
         panel2.add(graphUploadButton);
         graphUploadButton.addActionListener(new graphUploadListener());
 
-
         menu.add(panel2);
         menu.add(panel1);
 
         frame.setMenuBar(menu);
     }
 
-    /** 
-     * Returns a point found within the drawing radius of the given location, 
-     * or null if none
+    /**
+     * Returns a point found within the drawing radius of the given location, or
+     * null if none
      *
-     *  x  the x coordinate of the location
-     *  y  the y coordinate of the location
-     *  @return  a point from the graph if there is one covering this location, 
-     *  or a null reference if not
+     * x the x coordinate of the location y the y coordinate of the location
+     * 
+     * @return a point from the graph if there is one covering this location, or a
+     *         null reference if not
      */
     public Point findNearbyPoint(int x, int y) {
         Point pointFound = null;
-        Graph<DisplayNode,DisplayEdge> g = graph.getGraph();
-        for(int i=0; i<g.numNodes(); i++) {
+        Graph<DisplayNode, DisplayEdge> g = graph.getGraph();
+        for (int i = 0; i < g.numNodes(); i++) {
             Point p = g.getNode(i).getData().getPosition();
-            double d = p.distance((double)x, (double)y);
+            double d = p.distance((double) x, (double) y);
             if (d < 20) {
                 pointFound = p;
             }
@@ -153,20 +158,90 @@ public class GraphGUI {
     /** Constants for recording the input mode */
     enum InputMode {
         ADD_NODES, RMV_NODES, CLR_NODES, ADD_EDGES, RMV_EDGES, CLR_EDGES
-        }
-
+    }
 
     private class graphSaveListener implements ActionListener {
         /** Event handler for AddNode button */
         public void actionPerformed(ActionEvent e) {
-            System.out.print("");
+            try {
+                String filename = JOptionPane.showInputDialog("Please input name for edge: ");
+                FileWriter fout = new FileWriter("out.bin");
+
+                fout.write(graph.getGraph().numNodes() + "\n");
+
+                for (int i = 0; i < graph.getGraph().numNodes(); i++) {
+                    Graph<DisplayNode, DisplayEdge>.Node node = graph.getGraph().getNode(i);
+                    DisplayNode data = node.getData();
+                    Point p = data.getPosition();
+                    Color col = data.getColor();
+                    fout.write((int) p.getX() + "," + (int) p.getY() + "," + data.getLabel() + "," + col.getRed() + "," + col.getGreen() + "," + col.getBlue()
+                            + "\n");
+                }
+
+                fout.write(graph.getGraph().numEdges() + "\n");
+
+                for (int i = 0; i < graph.getGraph().numEdges(); i++) {
+                    Graph<DisplayNode, DisplayEdge>.Edge edge = graph.getGraph().getEdge(i);
+                    Graph<DisplayNode, DisplayEdge>.Node n1 = edge.getHead();
+                    Graph<DisplayNode, DisplayEdge>.Node n2 = edge.getTail();
+                    int head_index = 0, tail_index = 0;
+                    for (int j = 0; j < graph.getGraph().numNodes(); j++) {
+                        if(graph.getGraph().getNode(j) == n1){
+                            head_index = j;
+                        }
+                        else if (graph.getGraph().getNode(j) == n2) {
+                            tail_index = j;
+                        }
+                    }
+                    Color col = edge.getData().getColor();
+                    String label = edge.getData().getLabel();
+                    fout.write(head_index + "," + tail_index + "," + label + "," + col.getRed() + "," + col.getGreen() + "," + col.getBlue() + "\n");
+                }
+
+
+                fout.close();
+            } catch(IOException ex){
+                System.out.println(ex);
+            }
         }
     }
 
     private class graphUploadListener implements ActionListener {
         /** Event handler for AddNode button */
         public void actionPerformed(ActionEvent e) {
-        
+            try {
+                for (int i=0; i<graph.getGraph().numNodes(); i++) {
+                    graph.getGraph().removeNode(graph.getGraph().getNode(i));
+                }
+                for (int i=0; i<graph.getGraph().numEdges(); i++) {
+                    graph.getGraph().removeEdge(graph.getGraph().getEdge(i));
+                }
+                graph.repaint();
+                for (int i=0; i<graph.getGraph().numNodes(); i++) {
+                    graph.getGraph().removeNode(graph.getGraph().getNode(i));
+                }
+                graph.repaint();
+                FileReader fr = new FileReader("out.bin"); 
+                BufferedReader br = new BufferedReader(fr);
+                int numNodes = Integer.parseInt(br.readLine());
+                for(int i = 0; i < numNodes; i++){
+                    String[] arrSplit = br.readLine().split(",");
+                    Point newPoint = new Point(Integer.parseInt(arrSplit[0]), Integer.parseInt(arrSplit[1]));
+                    graph.getGraph().addNode(new DisplayNode(newPoint, arrSplit[2], new Color(Integer.parseInt(arrSplit[3]), Integer.parseInt(arrSplit[4]), Integer.parseInt(arrSplit[5]))));
+                }
+                int numEdges = Integer.parseInt(br.readLine());
+                for(int i = 0; i < numEdges; i++){
+                    String[] arrSplit = br.readLine().split(",");
+                    graph.getGraph().addEdge(new DisplayEdge(arrSplit[2], new Color(Integer.parseInt(arrSplit[3]), Integer.parseInt(arrSplit[4]), Integer.parseInt(arrSplit[5])), 0), graph.getGraph().getNode(Integer.parseInt(arrSplit[0])), graph.getGraph().getNode(Integer.parseInt(arrSplit[1])));
+                }
+                br.close();
+                fr.close();
+
+                graph.repaint();
+                
+            } catch (IOException ex) {
+                ex.printStackTrace();
+            }
         }
     }
     
@@ -182,23 +257,23 @@ public class GraphGUI {
 
             pane.add(new JLabel("R"));
             pane.add(_red);  
-            pane.add(new JLabel("B"));
-            pane.add(_blue);
             pane.add(new JLabel("G"));
             pane.add(_green);
+            pane.add(new JLabel("B"));
+            pane.add(_blue);
 
             int option = JOptionPane.showConfirmDialog(graph, pane, "Please fill all the fields", JOptionPane.YES_NO_OPTION, JOptionPane.INFORMATION_MESSAGE);
 
             if (option == JOptionPane.YES_OPTION) {
 
                 String red = _red.getText();
-                String blue = _blue.getText();
                 String green = _green.getText();
+                String blue = _blue.getText();
 
                 try {
                     Red = Integer.parseInt(red);
-                    Blue = Integer.parseInt(blue);
                     Green = Integer.parseInt(green);
+                    Blue = Integer.parseInt(blue);
                 } catch (NumberFormatException nfe) {
                     nfe.printStackTrace();
                 }
@@ -261,18 +336,24 @@ public class GraphGUI {
 
 
     
-    /* Listener for Reset button 
+    /* Listener for Reset button */
     private class ResetListener implements ActionListener {
-         Event handler for Reset button 
         public void actionPerformed(ActionEvent e) {
             instr.setText("Graph has been Reset!");
             // resets all the edge colors to original color
+            for (int i=0; i<graph.getGraph().numNodes(); i++) {
+                graph.getGraph().removeNode(graph.getGraph().getNode(i));
+            }
             for (int i=0; i<graph.getGraph().numEdges(); i++) {
-                graph.getGraph().getEdge(i).getData().setColor(new Color(232,111,117));
+                graph.getGraph().removeEdge(graph.getGraph().getEdge(i));
+            }
+            graph.repaint();
+            for (int i=0; i<graph.getGraph().numNodes(); i++) {
+                graph.getGraph().removeNode(graph.getGraph().getNode(i));
             }
             graph.repaint();
         }
-    }*/
+    }
 
     /** Mouse listener for Pointgraph element */
     private class PointMouseListener extends MouseAdapter
@@ -328,10 +409,10 @@ public class GraphGUI {
 
                             pane.add(new JLabel("R"));
                             pane.add(_red);  
-                            pane.add(new JLabel("B"));
-                            pane.add(_blue);
                             pane.add(new JLabel("G"));
                             pane.add(_green);
+                            pane.add(new JLabel("B"));
+                            pane.add(_blue);
 
                             int option = JOptionPane.showConfirmDialog(graph, pane, "Please fill all the fields", JOptionPane.YES_NO_OPTION, JOptionPane.INFORMATION_MESSAGE);
 
@@ -349,7 +430,7 @@ public class GraphGUI {
                                     nfe.printStackTrace();
                                 }
 
-                                graph.getGraph().getNode(i).getData().setColor(new Color(_Red, _Blue, _Green));
+                                graph.getGraph().getNode(i).getData().setColor(new Color(_Red, _Green, _Blue));
                             }
                         }
                     }
@@ -378,7 +459,7 @@ public class GraphGUI {
                         //    try {
                         //    int weight = Integer.parseInt(data);
                         if(head != null && tail != null)
-                            graph.getGraph().addEdge(new DisplayEdge(data, new Color(Red, Blue, Green), 0), head, tail);
+                            graph.getGraph().addEdge(new DisplayEdge(data, new Color(Red, Green, Blue), 0), head, tail);
                         //    } catch (Exception f) {
                         //        JOptionPane.showMessageDialog(null,"Please enter a valid number for edge cost","ERROR!",JOptionPane.WARNING_MESSAGE);
                          //   }
